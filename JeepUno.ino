@@ -35,7 +35,7 @@ U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 volatile unsigned long LastTime;                                // Stores the last time we measured a pulse so we can calculate the period.
 volatile unsigned long PeriodBetweenPulses = ZeroTimeout+1000;  // Stores the period between pulses in microseconds.
 volatile unsigned long PeriodAverage = ZeroTimeout+1000;        // Stores the period between pulses in microseconds in total, if we are taking multiple pulses.
-unsigned long Frequency;                                        // Calculated frequency, based on the period.
+
 unsigned long RPM;                                              // Raw RPM without any processing.
 unsigned int PulseCount = 16;                                   // Counts the amount of pulse readings we took so we can average multiple pulses before calculating the period.
 
@@ -110,7 +110,7 @@ ISR(TIMER1_COMPA_vect)
 
 void loop()  // Start of loop:
 {
-  Calc_RPM();
+  RPM = Calc_RPM();
 
   
   /*
@@ -257,8 +257,10 @@ void Refresh_OLED(byte Item)
 
 
 
-void Calc_RPM()
+unsigned long Calc_RPM()
 {
+  unsigned long Frequency, rpm;
+  
   LastTimeCycleMeasure = LastTime;          // Store the LastTime in a variable.
   CurrentMicros = micros();                 // Store the micros() in a variable.
 
@@ -275,7 +277,13 @@ void Calc_RPM()
   Frequency = 10E6 / PeriodAverage;
   
   // Calculate the RPM:
-  RPM = Frequency / PulsesPerRevolution * 60;     // Frequency divided by amount of pulses per revolution multiply by
+  rpm = Frequency / PulsesPerRevolution * 60;     // Frequency divided by amount of pulses per revolution multiply by
                                                   // 60 seconds to get minutes.
-  RPM = RPM / 10;  // Remove the decimals.
+  rpm = rpm / 10;  // Remove the decimals.
+
+  return rpm;
 }
+
+
+
+//byte Calc_DutyCycle(
