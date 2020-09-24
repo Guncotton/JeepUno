@@ -100,38 +100,14 @@ void setup()  // Start of setup:
 }  // End of setup.
 
 
-// timer interrupt service routine
-ISR(TIMER1_COMPA_vect)
+/*##########################################
+#############   INTERRUPTS   ###############
+##########################################*/
+
+ISR(TIMER1_COMPA_vect)  // timer interrupt service routine
 {
   UpdateDisplay = true;
-}
-
-
-
-void loop()  // Start of loop:
-{
-  RPM = Calc_RPM();
-
-  //OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
-  
-  /*
-  Serial.print("Period: ");
-  Serial.print(PeriodBetweenPulses);
-  Serial.print("Frequency: ");
-  Serial.print(Frequency/10);
-  Serial.print(".");
-  Serial.print(Frequency%10);
-  Serial.print("RPM: ");
-  Serial.print(RPM);
-*/
-  // Update display on Timer1 interrupt.
-  if (UpdateDisplay)
-  {
-    Refresh_OLED(DisplayItem);
-    UpdateDisplay = false;
-  }
-}  // End of loop.
-
+} // End of ISR.
 
 
 void Pulse_Event()  // The interrupt runs this to calculate the period between pulses:
@@ -154,6 +130,27 @@ void Pulse_Event()  // The interrupt runs this to calculate the period between p
   }
 }  // End of Pulse_Event.
 
+
+/*##########################################
+#############   MAIN LOOP   ################
+##########################################*/
+void loop()  // Start of loop:
+{
+  RPM = Calc_RPM();
+
+  //OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
+  
+  /*
+  Serial.print("RPM: ");
+  Serial.print(RPM);
+*/
+  // Update display on Timer1 interrupt.
+  if (UpdateDisplay)
+  {
+    Refresh_OLED(DisplayItem);
+    UpdateDisplay = false;
+  }
+}  // End of loop.
 
 
 // Returns temperature from thermistor in F.
@@ -189,25 +186,21 @@ float Thermistor_Temperature(int channel, byte sample_size)
   result *= 1.8;
   result += 32;
   return result;
-}
-
+} // End of Thermistor_Temperature.
 
 
 // Draws temperature value on OLED display.
 void Display_Temperature(const char *title, const char *value, bool invert)
-{
-  //dtostrf(value, 3, 0, payload);
-  
+{  
   oled.setInverseFont(invert);
   oled.setCursor(0,0);
   oled.setFont(u8x8_font_px437wyse700a_2x2_r);
   oled.drawString(0, 0, title);
-
   
   oled.setFont(u8x8_font_inb33_3x6_r);
   oled.setCursor(0, 2);
   oled.print(value);
-}
+} // End of Display_Temperature.
 
 
 
@@ -254,10 +247,9 @@ void Refresh_OLED(byte Item)
           
           break;
     }
-}
+} // End of Refresh_OLED.
 
-
-
+// Calculates RPM from timer values.
 unsigned long Calc_RPM()
 {
   unsigned long Frequency, rpm;
@@ -274,6 +266,9 @@ unsigned long Calc_RPM()
     Frequency = 0;  // Set frequency as 0.
   }
 
+  //Serial.print("Period: ");
+  //Serial.print(PeriodBetweenPulses);
+  
   // Calculate the frequency. Decimal is shifted by 1 to the right to keep freq as integer.
   Frequency = 10E6 / PeriodAverage;
   
@@ -283,8 +278,7 @@ unsigned long Calc_RPM()
   rpm = rpm / 10;  // Remove the decimals.
 
   return rpm;
-}
-
+} // End of Calc_RPM.
 
 
 byte Calc_DutyCycle(unsigned long rpm)
@@ -295,4 +289,4 @@ byte Calc_DutyCycle(unsigned long rpm)
   
   result = 1 * rpm + 10;
   return result;
-}
+} // End of Calc_DutyCycle.
