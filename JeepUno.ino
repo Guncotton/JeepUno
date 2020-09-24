@@ -112,6 +112,7 @@ void loop()  // Start of loop:
 {
   RPM = Calc_RPM();
 
+  //OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
   
   /*
   Serial.print("Period: ");
@@ -286,4 +287,12 @@ unsigned long Calc_RPM()
 
 
 
-//byte Calc_DutyCycle(
+byte Calc_DutyCycle(unsigned long rpm)
+{
+  byte result;
+
+  // Coefficients m & b characterize the behavior of gauge.
+  
+  result = 1 * rpm + 10;
+  return result;
+}
