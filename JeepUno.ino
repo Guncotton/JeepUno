@@ -78,12 +78,12 @@ void setup()  // Start of setup:
   TCNT1  = 0;     //initialize counter value to 0
   // set compare match register for 0.5hz increments
   OCR1A = 31311;  // = (16*10^6) / (0.5*1024) - 1 (must be < 65536)
-  // turn on CTC mode
-  TCCR1B |= (1 << WGM12);
-  // Set CS10 and CS12 bits for 1024 prescaler
-  TCCR1B |= (1 << CS12) | (1 << CS10);  
-  // enable timer compare interrupt
-  TIMSK1 |= (1 << OCIE1A);
+  
+  TCCR1B |= (1 << WGM12);   // turn on CTC mode
+  
+  TCCR1B |= (1 << CS12) | (1 << CS10);  // Set CS10 and CS12 bits for 1024 prescaler
+  
+  TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
 
   attachInterrupt(digitalPinToInterrupt(2), Pulse_Event, RISING);  // Enable interruption pin 2 when going from LOW to HIGH.
   
@@ -110,25 +110,9 @@ ISR(TIMER1_COMPA_vect)
 
 void loop()  // Start of loop:
 {
-  LastTimeCycleMeasure = LastTime;          // Store the LastTime in a variable.
-  CurrentMicros = micros();                 // Store the micros() in a variable.
+  Calc_RPM();
 
-  // CurrentMicros should always be higher than LastTime, but in rare occasions that's not true.
-  if(CurrentMicros < LastTimeCycleMeasure) LastTimeCycleMeasure = CurrentMicros;
   
-  // Detect if pulses stopped or frequency is too low, so we can show 0 Frequency:
-  if(PeriodBetweenPulses > ZeroTimeout || CurrentMicros - LastTimeCycleMeasure > ZeroTimeout)
-  {
-    Frequency = 0;  // Set frequency as 0.
-  }
-
-  // Calculate the frequency. Decimal is shifted by 1 to the right to keep freq as integer.
-  Frequency = 10E6 / PeriodAverage;
-  
-  // Calculate the RPM:
-  RPM = Frequency / PulsesPerRevolution * 60;     // Frequency divided by amount of pulses per revolution multiply by
-                                                  // 60 seconds to get minutes.
-  RPM = RPM / 10;  // Remove the decimals.
   /*
   Serial.print("Period: ");
   Serial.print(PeriodBetweenPulses);
@@ -269,4 +253,29 @@ void Refresh_OLED(byte Item)
           
           break;
     }
+}
+
+
+
+void Calc_RPM()
+{
+  LastTimeCycleMeasure = LastTime;          // Store the LastTime in a variable.
+  CurrentMicros = micros();                 // Store the micros() in a variable.
+
+  // CurrentMicros should always be higher than LastTime, but in rare occasions that's not true.
+  if(CurrentMicros < LastTimeCycleMeasure) LastTimeCycleMeasure = CurrentMicros;
+  
+  // Detect if pulses stopped or frequency is too low, so we can show 0 Frequency:
+  if(PeriodBetweenPulses > ZeroTimeout || CurrentMicros - LastTimeCycleMeasure > ZeroTimeout)
+  {
+    Frequency = 0;  // Set frequency as 0.
+  }
+
+  // Calculate the frequency. Decimal is shifted by 1 to the right to keep freq as integer.
+  Frequency = 10E6 / PeriodAverage;
+  
+  // Calculate the RPM:
+  RPM = Frequency / PulsesPerRevolution * 60;     // Frequency divided by amount of pulses per revolution multiply by
+                                                  // 60 seconds to get minutes.
+  RPM = RPM / 10;  // Remove the decimals.
 }
