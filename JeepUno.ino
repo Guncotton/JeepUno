@@ -87,10 +87,11 @@ void setup()  // Start of setup:
 
   attachInterrupt(digitalPinToInterrupt(2), Pulse_Event, RISING);  // Enable interruption pin 2 when going from LOW to HIGH.
   
-  Serial.begin(250000);
+  //Serial.begin(250000);
 
   // Configure OLED display.
   oled.begin();
+  oled.setFlipMode(1);
   oled.setFont(u8x8_font_inb33_3x6_r);
   oled.setCursor(8, 2);
   
