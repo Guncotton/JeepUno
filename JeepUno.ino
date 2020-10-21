@@ -64,6 +64,14 @@ void setup()  // Start of setup:
   pinMode(TEST, OUTPUT);          // Test pin for debugging program.
   
   analogReference(DEFAULT);       // 5v adc reference.
+
+  // Configure OLED display.
+  
+  oled.begin();
+  oled.setFlipMode(1);
+  oled.setFont(u8x8_font_inb33_3x6_r);
+  oled.setCursor(8, 2);
+  oled.print(" F");
   
   // Configure Timer2 for PWM, pin & duty cycle.
   
@@ -83,21 +91,12 @@ void setup()  // Start of setup:
   
   TCCR1B |= (1 << CS12) | (1 << CS10);  // Set CS10 and CS12 bits for 1024 prescaler
   
-  TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
-
-  attachInterrupt(digitalPinToInterrupt(2), Pulse_Event, RISING);  // Enable interruption pin 2 when going from LOW to HIGH.
-  
   //Serial.begin(250000);
-
-  // Configure OLED display.
-  oled.begin();
-  oled.setFlipMode(1);
-  oled.setFont(u8x8_font_inb33_3x6_r);
-  oled.setCursor(8, 2);
+ 
+  //delay(1000);  //Since we don't have any readings stored we need a high enough value in micros() so divide doesn't return negative values.
   
-  delay(1000);  //Since we don't have any readings stored we need a high enough value in micros() so divide doesn't return negative values.
-  
-  oled.print(" F");
+  attachInterrupt(digitalPinToInterrupt(2), Pulse_Event, RISING);  // Enable interruption pin 2 when going from LOW to HIGH.
+  TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
 }  // End of setup.
 
 
