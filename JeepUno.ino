@@ -206,13 +206,15 @@ void Display_Temperature(const char *title, const char *value, bool invert)
 
 
 
-// Scans OLED display.
+// Scans OLED display & activates fan relay if above threshold.
 void Refresh_OLED(byte Item)
 {
+  float result=0;
+  
   switch (Item)
     {
       case 0:   
-        result = Thermistor_Temperature(COOLANT, 5);
+        result = Thermistor_Temperature(COOLANT, 2);
          
         if (result >= FAN_ON)
         {
