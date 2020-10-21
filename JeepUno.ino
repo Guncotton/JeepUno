@@ -3,9 +3,9 @@
 
 U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 
-//###########
-// Constants
-//###########
+//#############
+//# Constants #
+//#############
 
 #define FAN_ON      185          // Fan turn on temperature.
 #define FAN_DELTA   20           // Fan turn off delta T. 
