@@ -289,7 +289,8 @@ byte Calc_DutyCycle(unsigned long rpm)
   byte result;
 
   // Coefficients m & b characterize the behavior of gauge.
+  //dutycycle = 0.0479*rpm * 35.4
   
-  result = 1 * rpm + 10;
-  return result;
+  result = 0.0479 * rpm + 35.4;
+  return byte(result);
 } // End of Calc_DutyCycle.
