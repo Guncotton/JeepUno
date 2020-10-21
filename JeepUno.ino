@@ -128,21 +128,38 @@ void Pulse_Event()  // The interrupt runs this to calculate the period between p
 ##########################################*/
 void loop()  // Start of loop:
 {
-  RPM = Calc_RPM();
-  OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
+  if(PulseCount >= NPulses)  // If counter for amount of readings reach the set limit:
+  {
+    // Calculates the the RPM from frequency input.
+    RPM = Calc_RPM(PeriodSum, PulseCount);
   
-  
-  //Serial.print("RPM: ");
- // Serial.print(RPM);
- // Serial.print("\n");
+    //Serial.print("RPM: ");
+    //Serial.println(RPM);
+    
+    noInterrupts();
+    
+    PulseCount = 0;                                     // Reset the counter to start over.
+    PeriodSum = TimerPeriod;                            // Reset PeriodSum to start a new averaging operation.
+
+    interrupts();
+    
+    OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
+  }  
+
+ 
   // Update display on Timer1 interrupt.
   if (UpdateDisplay)
   {
-    Refresh_OLED(DisplayItem);
+    Refresh_OLED(DataToDisplay);
     UpdateDisplay = false;
   }
 }  // End of loop.
 
+
+
+/*##########################################
+#############   FUNCTIONS   ################
+##########################################*/
 
 // Returns temperature from thermistor in F.
 float Thermistor_Temperature(int channel, byte sample_size)
