@@ -191,6 +191,7 @@ float Thermistor_Temperature(int channel, byte sample_size)
 } // End of Thermistor_Temperature.
 
 
+
 // Draws temperature value on OLED display.
 void Display_Temperature(const char *title, const char *value, bool invert)
 {  
