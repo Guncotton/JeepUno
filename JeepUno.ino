@@ -275,7 +275,10 @@ unsigned long Calc_RPM()
   // Calculate the RPM:
   rpm = Frequency / PulsesPerRevolution * 60;     // Frequency divided by amount of pulses per revolution multiply by
                                                   // 60 seconds to get minutes.
-  rpm = rpm / 10;  // Remove the decimals.
+
+  rpm /= 2.83;                                    // Pulley ratio
+  
+  rpm /= 10;  // Remove the decimals.
 
   return rpm;
 } // End of Calc_RPM.
