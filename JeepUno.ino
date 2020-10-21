@@ -32,25 +32,19 @@ U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 //# Variables #
 //#############
 
-volatile unsigned long LastTime;                                // Stores the last time we measured a pulse so we can calculate the period.
-volatile unsigned long PeriodBetweenPulses = ZeroTimeout+1000;  // Stores the period between pulses in microseconds.
-volatile unsigned long PeriodAverage = ZeroTimeout+1000;        // Stores the period between pulses in microseconds in total, if we are taking multiple pulses.
+volatile unsigned long LastTimerValue = 0;                       // Stores the last time we measured a pulse so we can calculate the period.
+volatile unsigned long TimerPeriod = 0;                         // Stores the period between pulses in microseconds.
+volatile unsigned long AverageTimerPeriod = 0;                       // Stores the period between pulses in microseconds in total, if we are taking multiple pulses.
+volatile unsigned long PeriodSum = 0;                                        // Stores the summation of all the periods to do the average.
 
 unsigned long RPM;                                              // Raw RPM without any processing.
-unsigned int PulseCount = 16;                                   // Counts the amount of pulse readings we took so we can average multiple pulses before calculating the period.
+unsigned int PulseCount = 0;                                    // Counts the amount of pulse readings we took so we can average multiple pulses before calculating the period.
+unsigned int NPulses = 15;
 
-unsigned long PeriodSum;                                        // Stores the summation of all the periods to do the average.
-
-unsigned long LastTimeCycleMeasure = LastTime;                  // Stores the last time we measure a pulse in that cycle.
-
-unsigned long CurrentMicros = micros();  
-unsigned int AmountOfReadings = 32;
-
-float result=0;                                                 // Calculation result.
-char payload[5];                                                // String for OLED.
+char outStr[5];                                                // String for OLED.
 
 bool UpdateDisplay = false;                                     // Flag for a display update.
-byte DisplayItem = 0;                                           // Index value that selects what value to draw on display.    
+byte DataToDisplay = 0;                                         // Index value that selects what value to draw on display.    
 
 
 void setup()  // Start of setup:
@@ -229,64 +223,55 @@ void Refresh_OLED(byte Item)
           digitalWrite(FAN, LOW);  
         }
       
-        dtostrf(result, 3, 0, payload);
+        dtostrf(result, 3, 0, outStr);
          
         if (digitalRead(FAN)) 
         {
-          Display_Temperature("CLT Rtn", payload, true);
+          Display_Temperature("CLT Rtn", outStr, true);
         }
         else
         {
-          Display_Temperature("CLT Rtn", payload, false);
+          Display_Temperature("CLT Rtn", outStr, false);
         }
 
-        DisplayItem++;
+        DataToDisplay++;
         
         break;
 
       case 1:
-          result = Thermistor_Temperature(PS_OIL, 5);
+          result = Thermistor_Temperature(PS_OIL, 2);
           
-          dtostrf(result, 3, 0, payload);
+          dtostrf(result, 3, 0, outStr);
           
-          Display_Temperature("P/S Oil", payload, false);
+          Display_Temperature("P/S Oil", outStr, false);
           
-          DisplayItem = 0;
+          DataToDisplay = 0;
           
           break;
     }
 } // End of Refresh_OLED.
 
+
+
 // Calculates RPM from timer values.
-unsigned long Calc_RPM()
+unsigned long Calc_RPM(unsigned long AggregatePeriod, unsigned int Samples)
 {
   unsigned long Frequency, rpm;
-  
-  LastTimeCycleMeasure = LastTime;          // Store the LastTime in a variable.
-  CurrentMicros = micros();                 // Store the micros() in a variable.
 
-  // CurrentMicros should always be higher than LastTime, but in rare occasions that's not true.
-  if(CurrentMicros < LastTimeCycleMeasure) LastTimeCycleMeasure = CurrentMicros;
+  // Calculate the final period dividing the sum of all readings by the amount of readings to get the average.
+  AggregatePeriod = AggregatePeriod / Samples;
   
-  // Detect if pulses stopped or frequency is too low, so we can show 0 Frequency:
-  if(PeriodBetweenPulses > ZeroTimeout || CurrentMicros - LastTimeCycleMeasure > ZeroTimeout)
-  {
-    Frequency = 0;  // Set frequency as 0.
-  }
-
   //Serial.print("Period: ");
-  //Serial.print(PeriodBetweenPulses);
+  //Serial.println(AggregatePeriod);
   
   // Calculate the frequency. Decimal is shifted by 1 to the right to keep freq as integer.
-  Frequency = 10E6 / PeriodAverage;
+  Frequency = 10E6 / AggregatePeriod;
   
-  // Calculate the RPM:
-  rpm = Frequency / PulsesPerRevolution * 60;     // Frequency divided by amount of pulses per revolution multiply by
-                                                  // 60 seconds to get minutes.
+  // Frequency divided by amount of pulses per revolution multiply by 60 seconds to get minutes. 600 moves decimal over for integer friendly math.
+  rpm = Frequency / PulsesPerRevolution * 600;
 
-  rpm /= 2.83;                                    // Pulley ratio
-  
-  rpm /= 10;  // Remove the decimals.
+  // Pulley ratio 2.83. Made integer math friendly.
+  rpm /= 283;                                     
 
   return rpm;
 } // End of Calc_RPM.
