@@ -112,22 +112,14 @@ ISR(TIMER1_COMPA_vect)  // timer interrupt service routine
 
 void Pulse_Event()  // The interrupt runs this to calculate the period between pulses:
 {
-  PeriodBetweenPulses = micros() - LastTime;
+  TimerPeriod = micros() - LastTimerValue;
 
-  LastTime = micros();
+  LastTimerValue = micros();
 
-  if(PulseCount >= AmountOfReadings)  // If counter for amount of readings reach the set limit:
-  {
-    PeriodAverage = PeriodSum / AmountOfReadings;  // Calculate the final period dividing the sum of all readings by the
-                                                   // amount of readings to get the average.
-    PulseCount = 1;  // Reset the counter to start over. The reset value is 1 because its the minimum setting allowed (1 reading).
-    PeriodSum = PeriodBetweenPulses;  // Reset PeriodSum to start a new averaging operation.
-  }
-  else
-  {
-    PulseCount++;  // Increase the counter for amount of readings by 1.
-    PeriodSum += PeriodBetweenPulses;  // Add the periods so later we can average.
-  }
+  PeriodSum += TimerPeriod;  // Add the periods so later we can average.
+    
+  PulseCount++;  // Increase the counter for amount of readings by 1.
+  
 }  // End of Pulse_Event.
 
 
