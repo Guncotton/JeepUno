@@ -7,8 +7,8 @@ U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 // Constants
 //###########
 
-#define FAN_ON      190          // Fan turn on temperature.
-#define FAN_DELTA   15           // Fan turn off delta T. 
+#define FAN_ON      185          // Fan turn on temperature.
+#define FAN_DELTA   20           // Fan turn off delta T. 
 
 #define FAN         12           // Pin assigned to Fan relay. 
 #define TACH        11           // Pin assigned to Tachometer meter. 
