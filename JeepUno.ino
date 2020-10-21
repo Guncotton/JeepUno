@@ -138,13 +138,12 @@ void Pulse_Event()  // The interrupt runs this to calculate the period between p
 void loop()  // Start of loop:
 {
   RPM = Calc_RPM();
-
-  //OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
+  OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
   
-  /*
-  Serial.print("RPM: ");
-  Serial.print(RPM);
-*/
+  
+  //Serial.print("RPM: ");
+ // Serial.print(RPM);
+ // Serial.print("\n");
   // Update display on Timer1 interrupt.
   if (UpdateDisplay)
   {
