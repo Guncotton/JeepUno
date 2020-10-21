@@ -14,9 +14,6 @@ U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 #define TACH        11           // Pin assigned to Tachometer meter. 
 #define TEST        7            // Pin assigned to testing.
 
-#define PulsesPerRevolution 6    // Alternators are commonly 6.
-#define ZeroTimeout 100000       // Period of cutoff frequency. f = 1/(ZeroTimeout * 1e-6)
-
 // which analog pin to connect
 #define COOLANT     A0
 #define PS_OIL      A1
@@ -125,7 +122,7 @@ void loop()  // Start of loop:
   if(PulseCount >= NPulses)  // If counter for amount of readings reach the set limit:
   {
     // Calculates the the RPM from frequency input.
-    RPM = Calc_RPM(PeriodSum, PulseCount);
+    RPM = Calc_RPM2(PeriodSum, PulseCount);
   
     //Serial.print("RPM: ");
     //Serial.println(RPM);
@@ -271,7 +268,7 @@ unsigned long Calc_RPM(unsigned long AggregatePeriod, unsigned int Samples)
   Frequency = 10E6 / AggregatePeriod;
   
   // Frequency divided by amount of pulses per revolution multiply by 60 seconds to get minutes. 600 moves decimal over for integer friendly math.
-  rpm = Frequency / PulsesPerRevolution * 600;
+  rpm = Frequency / 6 * 600;
 
   // Pulley ratio 2.83. Made integer math friendly.
   rpm /= 283;                                     
