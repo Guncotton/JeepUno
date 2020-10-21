@@ -69,7 +69,7 @@ void setup()  // Start of setup:
   
   TCCR2A = _BV(COM2A1) | _BV(WGM21) | _BV(WGM20);
   TCCR2B = _BV(CS22) | _BV(CS21);                 // 256 prescaler
-  OCR2A = 0;                                      // Dutycycle
+  OCR2A = 35;                                      // Dutycycle
 
   // Configure Timer1 for display update.
 
