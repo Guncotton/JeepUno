@@ -277,6 +277,35 @@ unsigned long Calc_RPM(unsigned long AggregatePeriod, unsigned int Samples)
 } // End of Calc_RPM.
 
 
+
+// Calculates RPM from timer values.
+unsigned long Calc_RPM2(unsigned long AggregatePeriod, unsigned int Samples)
+{
+  unsigned long rpm;
+
+  // Calculate the final period dividing the sum of all readings by the amount of readings to get the average.
+  AggregatePeriod = AggregatePeriod / Samples;
+  
+  //Serial.print("Period: ");
+  //Serial.println(AggregatePeriod);
+  
+  /* Calculate the frequency. Decimal is shifted by 1 to the right to keep freq as integer. Frequency divided by amount 
+  of pulses per revolution (6) to get RPS. Multiply by 60 seconds to RPM. 600 moves decimal over for integer friendly math.
+  Lastly, divide by the alternator pulley ratio 2.83 or 283 to keep it as int math.
+  
+  Frequency = 10E6 / AggregatePeriod;
+  rpm = Frequency / 6 * 600;
+  rpm /= 283;
+  
+  */
+
+  // PPR is a constant at 6 & pulley ratio is as well. Math can be simplified to:
+  rpm = 1E9 / (283 * AggregatePeriod);
+
+  return rpm;
+} // End of Calc_RPM.
+
+
 byte Calc_DutyCycle(unsigned long rpm)
 {
   float result;
