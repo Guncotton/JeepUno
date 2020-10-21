@@ -44,7 +44,7 @@ unsigned long PeriodSum;                                        // Stores the su
 unsigned long LastTimeCycleMeasure = LastTime;                  // Stores the last time we measure a pulse in that cycle.
 
 unsigned long CurrentMicros = micros();  
-unsigned int AmountOfReadings = 8;
+unsigned int AmountOfReadings = 32;
 
 float result=0;                                                 // Calculation result.
 char payload[5];                                                // String for OLED.
