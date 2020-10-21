@@ -294,11 +294,11 @@ unsigned long Calc_RPM()
 
 byte Calc_DutyCycle(unsigned long rpm)
 {
-  byte result;
+  float result;
 
   // Coefficients m & b characterize the behavior of gauge.
-  //dutycycle = 0.0479*rpm * 35.4
+  //PWM duty cycle = 0.048*rpm * 35 with R of 0.9999
   
-  result = 0.0479 * rpm + 35.4;
+  result = 0.048 * rpm + 35;
   return byte(result);
 } // End of Calc_DutyCycle.
