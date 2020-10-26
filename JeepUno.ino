@@ -1,7 +1,8 @@
 #include <U8x8lib.h>
 #include <Wire.h>
+#include "thermistor.h"
 
-U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
+U8X8_SSD1306_128X64_NONAME_HW_I2C OLED(U8X8_PIN_NONE);
 
 //#############
 //# Constants #
@@ -9,6 +10,8 @@ U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 
 #define FAN_ON      185          // Fan turn on temperature.
 #define FAN_DELTA   20           // Fan turn off delta T. 
+#define NPULSES     16
+
 
 #define FAN         12           // Pin assigned to Fan relay. 
 #define TACH        11           // Pin assigned to Tachometer meter. 
@@ -31,23 +34,23 @@ U8X8_SSD1306_128X64_NONAME_HW_I2C oled(U8X8_PIN_NONE);
 
 volatile unsigned long LastTimerValue = 0;                       // Stores the last time we measured a pulse so we can calculate the period.
 volatile unsigned long TimerPeriod = 0;                         // Stores the period between pulses in microseconds.
-volatile unsigned long AverageTimerPeriod = 0;                       // Stores the period between pulses in microseconds in total, if we are taking multiple pulses.
+volatile unsigned long AvgTimerPeriod = 0;                       // Stores the period between pulses in microseconds in total, if we are taking multiple pulses.
 volatile unsigned long PeriodSum = 0;                                        // Stores the summation of all the periods to do the average.
+volatile unsigned long Time;
 
-unsigned long RPM;                                              // Raw RPM without any processing.
-unsigned int PulseCount = 0;                                    // Counts the amount of pulse readings we took so we can average multiple pulses before calculating the period.
-unsigned int NPulses = 15;
+//unsigned long RPM;                                              // Raw RPM without any processing.
+volatile unsigned int PulseCount = 1;                                    // Counts the amount of pulse readings we took so we can average multiple pulses before calculating the period.
 
-char outStr[5];                                                // String for OLED.
-
-bool UpdateDisplay = false;                                     // Flag for a display update.
+volatile bool UpdateDisplay = false;                                     // Flag for a display update.
 byte DataToDisplay = 0;                                         // Index value that selects what value to draw on display.    
 
 
+//#############
+//#   SETUP   #
+//#############
 void setup()  // Start of setup:
-{   
+{    
   // Configure DIO & AIO
-   
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(2, INPUT_PULLUP);       // RPM Input
   pinMode(TACH, OUTPUT);          // Tachometer meter. (PWM)
@@ -57,42 +60,43 @@ void setup()  // Start of setup:
   analogReference(DEFAULT);       // 5v adc reference.
 
   // Configure OLED display.
-  
-  oled.begin();
-  oled.setFlipMode(1);
-  oled.setFont(u8x8_font_inb33_3x6_r);
-  oled.setCursor(8, 2);
-  oled.print(" F");
+  OLED.begin();
+  OLED.setBusClock(400000);
+  OLED.setFlipMode(1);
+  OLED.setFont(u8x8_font_inb33_3x6_r);
+  OLED.setCursor(8, 2);
+  OLED.print(" F");
+
+  //Serial.begin(250000);
   
   // Configure Timer2 for PWM, pin & duty cycle.
   
-  TCCR2A = _BV(COM2A1) | _BV(WGM21) | _BV(WGM20);
-  TCCR2B = _BV(CS22) | _BV(CS21);                 // 256 prescaler
-  OCR2A = 35;                                      // Dutycycle
+  TCCR2A = bit(COM2A1) | bit(WGM21) | bit(WGM20);
+  TCCR2B = bit(CS22) | bit(CS21) | bit(CS20);                 // 256 prescaler
+  TCNT2 = 0;
+  TIMSK2 = 0;
+  OCR2A = 29;                                      // Dutycycle for 0 reading.
 
   // Configure Timer1 for display update.
 
   TCCR1A = 0;     // set entire TCCR1A register to 0
-  TCCR1B = 0;     // same for TCCR1B
-  TCNT1  = 0;     //initialize counter value to 0
-  // set compare match register for 0.5hz increments
-  OCR1A = 31311;  // = (16*10^6) / (0.5*1024) - 1 (must be < 65536)
+  TCCR1B = bit(WGM12) | bit(CS12) | bit(CS10);   // turn on CTC mode, 1024 prescaler
+  TCNT1  = 0;     // initialize counter value to 0
   
-  TCCR1B |= (1 << WGM12);   // turn on CTC mode
+    // set compare match register for 0.5hz increments
+  OCR1A = 31249;  // = (16*10^6) / (0.5*1024) - 1 (must be < 65536)
   
-  TCCR1B |= (1 << CS12) | (1 << CS10);  // Set CS10 and CS12 bits for 1024 prescaler
-  
-  //Serial.begin(250000);
- 
+  TIMSK1 = bit(OCIE1A);    // enable timer compare interrupt
+
   //delay(1000);  //Since we don't have any readings stored we need a high enough value in micros() so divide doesn't return negative values.
   
   attachInterrupt(digitalPinToInterrupt(2), Pulse_Event, RISING);  // Enable interruption pin 2 when going from LOW to HIGH.
-  TIMSK1 |= (1 << OCIE1A);    // enable timer compare interrupt
+
 }  // End of setup.
 
 
 /*##########################################
-#############   INTERRUPTS   ###############
+########        INTERRUPTS        ##########
 ##########################################*/
 
 ISR(TIMER1_COMPA_vect)  // timer interrupt service routine
@@ -103,9 +107,11 @@ ISR(TIMER1_COMPA_vect)  // timer interrupt service routine
 
 void Pulse_Event()  // The interrupt runs this to calculate the period between pulses:
 {
-  TimerPeriod = micros() - LastTimerValue;
+  Time = micros();
+  
+  TimerPeriod = Time - LastTimerValue;
 
-  LastTimerValue = micros();
+  LastTimerValue = Time;
 
   PeriodSum += TimerPeriod;  // Add the periods so later we can average.
     
@@ -115,34 +121,47 @@ void Pulse_Event()  // The interrupt runs this to calculate the period between p
 
 
 /*##########################################
-#############   MAIN LOOP   ################
+##########      MAIN LOOP       ############
 ##########################################*/
 void loop()  // Start of loop:
 {
-  if(PulseCount >= NPulses)  // If counter for amount of readings reach the set limit:
-  {
-    // Calculates the the RPM from frequency input.
-    RPM = Calc_RPM2(PeriodSum, PulseCount);
+  byte Temperature;
+  unsigned long frequency;
   
-    //Serial.print("RPM: ");
-    //Serial.println(RPM);
-    
-    noInterrupts();
-    
-    PulseCount = 0;                                     // Reset the counter to start over.
-    PeriodSum = TimerPeriod;                            // Reset PeriodSum to start a new averaging operation.
-
-    interrupts();
-    
-    OCR2A = Calc_DutyCycle(RPM);    // Sets dutycycle of PWM.
-  }  
-
- 
-  // Update display on Timer1 interrupt.
-  if (UpdateDisplay)
+  while(1)
   {
-    Refresh_OLED(DataToDisplay);
-    UpdateDisplay = false;
+    if(PulseCount >= NPULSES)  // If counter for amount of readings reach the set limit:
+    { 
+      frequency = 1E7 / (PeriodSum / PulseCount);                                
+   
+      OCR2A = byte(frequency / 58 + 29);
+  
+      //Serial.print(period);
+      //Serial.println(frequency);
+      
+      PulseCount = 1;                                     // Reset the counter to start over.
+      
+      PeriodSum = TimerPeriod;                            // Reset PeriodSum to start a new averaging operation.
+    }  
+
+    Temperature = thermistor[analogRead(COOLANT)];
+    
+    if(Temperature >= FAN_ON)
+    {
+      digitalWrite(FAN, HIGH);
+    }
+    else if((Temperature + FAN_DELTA) < FAN_ON)
+    {
+      digitalWrite(FAN, LOW);
+    }
+    
+    // Update display on Timer1 interrupt.
+    if (UpdateDisplay)
+    {
+      Refresh_OLED(DataToDisplay);
+      
+      UpdateDisplay = false;
+    }
   }
 }  // End of loop.
 
@@ -151,7 +170,7 @@ void loop()  // Start of loop:
 /*##########################################
 #############   FUNCTIONS   ################
 ##########################################*/
-
+/*
 // Returns temperature from thermistor in F.
 float Thermistor_Temperature(int channel, byte sample_size)
 {
@@ -186,20 +205,20 @@ float Thermistor_Temperature(int channel, byte sample_size)
   result += 32;
   return result;
 } // End of Thermistor_Temperature.
+*/
 
 
 
 // Draws temperature value on OLED display.
 void Display_Temperature(const char *title, const char *value, bool invert)
 {  
-  oled.setInverseFont(invert);
-  oled.setCursor(0,0);
-  oled.setFont(u8x8_font_px437wyse700a_2x2_r);
-  oled.drawString(0, 0, title);
+  OLED.setInverseFont(invert);
+  OLED.setCursor(0,0);
+  OLED.setFont(u8x8_font_px437wyse700a_2x2_r);
+  OLED.drawString(0, 0, title);
   
-  oled.setFont(u8x8_font_inb33_3x6_r);
-  oled.setCursor(0, 2);
-  oled.print(value);
+  OLED.setFont(u8x8_font_inb33_3x6_r);
+  OLED.drawString(0, 2, value);
 } // End of Display_Temperature.
 
 
@@ -207,27 +226,19 @@ void Display_Temperature(const char *title, const char *value, bool invert)
 // Scans OLED display & activates fan relay if above threshold.
 void Refresh_OLED(byte Item)
 {
-  float result=0;
+  byte result;
+  char outStr[5];     // String for data to OLED.
   
   switch (Item)
     {
       case 0:   
-        result = Thermistor_Temperature(COOLANT, 2);
-         
-        if (result >= FAN_ON)
-        {
-          digitalWrite(FAN, HIGH);
-        }
-        else if ((result + FAN_DELTA) < FAN_ON)
-        {
-          digitalWrite(FAN, LOW);  
-        }
-      
+        result = thermistor[analogRead(COOLANT)];
+        
         dtostrf(result, 3, 0, outStr);
-         
+        
         if (digitalRead(FAN)) 
         {
-          Display_Temperature("CLT Rtn", outStr, true);
+          Display_Temperature("CLT Rtn",  outStr, true);
         }
         else
         {
@@ -239,8 +250,8 @@ void Refresh_OLED(byte Item)
         break;
 
       case 1:
-          result = Thermistor_Temperature(PS_OIL, 2);
-          
+          result = thermistor[analogRead(PS_OIL)];
+
           dtostrf(result, 3, 0, outStr);
           
           Display_Temperature("P/S Oil", outStr, false);
@@ -250,69 +261,3 @@ void Refresh_OLED(byte Item)
           break;
     }
 } // End of Refresh_OLED.
-
-
-
-// Calculates RPM from timer values.
-unsigned long Calc_RPM(unsigned long AggregatePeriod, unsigned int Samples)
-{
-  unsigned long Frequency, rpm;
-
-  // Calculate the final period dividing the sum of all readings by the amount of readings to get the average.
-  AggregatePeriod = AggregatePeriod / Samples;
-  
-  //Serial.print("Period: ");
-  //Serial.println(AggregatePeriod);
-  
-  // Calculate the frequency. Decimal is shifted by 1 to the right to keep freq as integer.
-  Frequency = 10E6 / AggregatePeriod;
-  
-  // Frequency divided by amount of pulses per revolution multiply by 60 seconds to get minutes. 600 moves decimal over for integer friendly math.
-  rpm = Frequency / 6 * 600;
-
-  // Pulley ratio 2.83. Made integer math friendly.
-  rpm /= 283;                                     
-
-  return rpm;
-} // End of Calc_RPM.
-
-
-
-// Calculates RPM from timer values.
-unsigned long Calc_RPM2(unsigned long AggregatePeriod, unsigned int Samples)
-{
-  unsigned long rpm;
-
-  // Calculate the final period dividing the sum of all readings by the amount of readings to get the average.
-  AggregatePeriod = AggregatePeriod / Samples;
-  
-  //Serial.print("Period: ");
-  //Serial.println(AggregatePeriod);
-  
-  /* Calculate the frequency. Decimal is shifted by 1 to the right to keep freq as integer. Frequency divided by amount 
-  of pulses per revolution (6) to get RPS. Multiply by 60 seconds to RPM. 600 moves decimal over for integer friendly math.
-  Lastly, divide by the alternator pulley ratio 2.83 or 283 to keep it as int math.
-  
-  Frequency = 10E6 / AggregatePeriod;
-  rpm = Frequency / 6 * 600;
-  rpm /= 283;
-  
-  */
-
-  // PPR is a constant at 6 & pulley ratio is as well. Math can be simplified to:
-  rpm = 1E9 / (283 * AggregatePeriod);
-
-  return rpm;
-} // End of Calc_RPM.
-
-
-byte Calc_DutyCycle(unsigned long rpm)
-{
-  float result;
-
-  // Coefficients m & b characterize the behavior of gauge.
-  //PWM duty cycle = 0.048*rpm * 35 with R of 0.9999
-  
-  result = 0.048 * rpm + 35;
-  return byte(result);
-} // End of Calc_DutyCycle.
